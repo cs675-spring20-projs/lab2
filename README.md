@@ -347,7 +347,7 @@ tests pass.
 <table>
 <tr><th>Component</th><th>Points</th></tr>
 <tr><td>Scheduler</td><td>15</td></tr>
-<tr><td>Word Count Plugins</td><td>15</td></tr>
+<tr><td>Word Count Plugins</td><td>20</td></tr>
 <tr><td>test-wc.sh</td><td>15</td></tr>
 <tr><td>test-failure.sh</td><td>15</td></tr>
 </table>
