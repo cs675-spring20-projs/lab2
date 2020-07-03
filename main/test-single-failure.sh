@@ -2,10 +2,19 @@
 go run client.go localhost:1234 wc pg-*.txt &
 pids[0]=$!
 
-go run worker.go localhost:1235 localhost:1234 100 & 
+go run worker.go localhost:1235 localhost:1234 10 & 
 pids[1]=$!
 
-echo "[Test]: waiting for client and worker to finish..." > /dev/stderr
+wait ${pids[1]}
+echo "[Test]: localhost:1235 failed..." > /dev/stderr
+
+sleep 5
+
+echo "[Test]: launch a new worker <localhost:1236>..." > /dev/stderr
+go run worker.go localhost:1236 localhost:1234 100 & 
+pids[2]=$!
+
+echo "[Test]: waiting for client and worker(s) to finish..." > /dev/stderr
 for pid in ${pids[*]}; do
     wait $pid
 done

@@ -176,11 +176,17 @@ func (drv *Driver) run(
 
 	fmt.Printf("%s: Starting MapReduce job: %s\n", drv.address, jobName)
 
+	// E.g., for word count, the name of the map plugin service
+	// module would be 'wcm_service'; for inverted indexing, the name
+	// would be 'iim_service'. 
 	fmt.Printf("%s: To start the Map phase...\n", drv.address)
-	schedule(mapPhase, "wcm_service")
+	schedule(mapPhase, jobName+"m_service")
 
+	// E.g., for word count, the name of the reduce plugin service
+	// module would be 'wcr_service'; for inverted indexing, the name
+	// would be 'iir_service'. 
 	fmt.Printf("%s: To start he Reduce phase...\n", drv.address)
-	schedule(reducePhase, "wcr_service")
+	schedule(reducePhase, jobName+"r_service")
 	finish()
 	drv.merge()
 

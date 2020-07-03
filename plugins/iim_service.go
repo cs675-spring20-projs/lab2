@@ -9,10 +9,10 @@ import (
 )
 
 // To compile the map plugin: run:
-// go build --buildmode=plugin -o wcm_service.so wcm_service.go
+// go build --buildmode=plugin -o iim_service.so iim_service.go
 
-// Define Word Count's map service
-type wcmService string
+// Define Inverted Indexing's map service
+type iimService string
 
 // MapReduceArgs defines this plugin's argument format
 type MapReduceArgs struct {
@@ -90,20 +90,20 @@ func ihash(s string) int {
 }
 
 // DON'T MODIFY THIS FUNCTION
-func (s wcmService) DoService(raw []byte) error {
+func (s iimService) DoService(raw []byte) error {
 	var args MapReduceArgs
 	buf := bytes.NewBuffer(raw)
 	dec := gob.NewDecoder(buf)
 	err := dec.Decode(&args)
 	if err != nil {
-		fmt.Printf("Word Count Service: Failed to decode!\n")
+		fmt.Printf("Inverted Indexing Service: Failed to decode!\n")
 		return err
 	}
-	fmt.Printf("Hello from wordCountService plugin: %s\n", args.InFile)
+	fmt.Printf("Hello from inverted indexing service plugin: %s\n", args.InFile)
 
 	doMap(args.JobName, args.InFile, args.TaskNum, args.NReduce)
 
 	return nil
 }
 
-var Interface wcmService
+var Interface iimService

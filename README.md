@@ -1,10 +1,25 @@
 # CS 675 Lab 2: Distributed and Fault-tolerant MapReduce
 
-## Important dates
+## Important Dates and Stuff
 
-**Due** Friday, 03/05, midnight.
+**Due** ~~Monday, 03/02,~~ Wednesday, 03/04, midnight.
 
 This is an **individual** lab.
+
+Using a Linux environment for development and testing is **highly
+recommanded**. By default you get [750 hours of free tier
+usage](https://aws.amazon.com/ec2/?did=ft_card&trk=ft_card) for
+[Amazon EC2 virtual
+machines](https://aws.amazon.com/ec2/?did=ft_card&trk=ft_card). Why
+not use that for development and testing? If you want to do moderately-scaled
+testing, spare a few cents (out of your $100 AWS credits) to spin up a few powerful VMs (e.g., 
+the `m5.2xlarge` with 8 CPUs and 32GB memory) and run your tests. 
+See [EC2 on demand](https://aws.amazon.com/ec2/pricing/on-demand/) for
+more detail. But make sure to **stop** your VMs when they are not being used.
+
+## Change log
+
+* **02/13/20:** Updated `main/client.go` to correct the parameters passed to `drv.Run()`.
 
 ## Introduction
 
@@ -16,22 +31,25 @@ tackle a distributed MapReduce library, writing code for a driver
 that hands out tasks to multiple workers and handles failures in workers.
 The interface to the library and the approach to fault tolerance is similar to the one described in
 the original [MapReduce paper](https://tddg.github.io/cs675-spring20/public/papers/mapreduce_osdi04.pdf).
-In this lab, you will complete a sample MapReduce application.
+In this lab, you will complete two sample MapReduce applications (i.e., the classic Word Count,
+and an Inverted Index application).
 
 ## Software
 
-You will use (mostly) the same serverless package as in Lab 1,
+You will reuse most of the serverless package inherited from Lab 1,
 focusing this time on implementing a working MapReduce framework
 prototype. 
 
-Oer the course of this lab, you will have to modify `schedule` in
-`schedule.go`, as well as `doMap` and `doReduce` in
-`plugins/wcm_service.go` and `plugins/wcr_service.go`, respectively.
+Over the course of this lab, you will have to modify `schedule` in
+`schedule.go`, as well as `doMap` (and `mapF`) and `doReduce` (and `reduceF`) in
+`plugins/wcm_service.go`, `plugins/wcr_service.go` (for word count
+named with a prefix `wc`), and `plugins/iim_service.go`, and `plugins/iir_service.go` (for inverted
+index named with a prefix `ii`), respectively.
 
 Recall that in Lab 1, you were asked to finish the implementation of 
 `worker.go` in `main/` and `driver.go` in `serverless/`. In this lab,
 you can reuse the code you've implemented in Lab 1. Those places are
-mared with the following comments:
+marked with the following comments:
 
 ```go
    //
@@ -102,7 +120,7 @@ a single output.
 shuts down its own RPC server. 
 
 
-### MapReduce Task Scheduling
+### Part A: MapReduce Task Scheduling
 
 One of MapReduce's biggest selling points is that the developer
 should not need to be aware that their code is running in parallel on
@@ -164,7 +182,13 @@ workers will take care of executing the right code for Map or Reduce
 when `Driver.run()` are called in `serverless/driver.go`).
 
 
-### MapReduce Input and Output
+### Part B: MapReduce Input and Output
+
+> **NOTE:** Both Part B and C deal with the plugin implementations
+located at `plugins/wcm_service.go` and `plugins/wcr_service.go` --
+your `doMap()` and `doReduce()` function will handle the MapReduce
+input and output, while your `mapF()` and `reduceF()` will carry 
+out the specific data processing. 
 
 The MapReduce implementation you are given is missing some pieces.
 Before you can write your first MapReduce function pair (i.e., the go
@@ -177,7 +201,7 @@ the `doReduce()` function in `serverless/wcr_service.go`
 respectively. The comments in those files should point you in the
 right direction. 
 
-### Word Count Application
+### Part C: Word Count
 
 To put your implementation in context, now is time to implement some
 interesting MapReduce operations. For this lab, we will be
@@ -210,6 +234,7 @@ Driver: enter the worker registration service loop...
 
 ```bash
 // In a separate terminal session
+$ cd "$GOPATH/src/cs675-spring20-labs/lab2/main"
 $ go run worker.go localhost:1235 localhost:1234 100
 2020/02/09 21:24:41 rpc.Register: method "Lock" has 1 input parameters; needs exactly three
 2020/02/09 21:24:41 rpc.Register: method "Unlock" has 1 input parameters; needs exactly three
@@ -237,7 +262,7 @@ implementation's correctness with the following command, which should
 produce the following top 10 words:
 
 ```bash
-$ sort -n -k2 mrtmp.wcseq | tail -10
+$ sort -n -k2 mr-final.wc.out | tail -10
 he: 34077
 was: 37044
 that: 37495
@@ -267,7 +292,7 @@ $ ./test-wc.sh
 and it will report if your solution is correct or not. 
 
 
-### Handling Worker Failures
+### Part D: Handling Worker Failures
 
 In this part you will make the driver handle failed workers.
 MapReduce makes this relatively easy because workers don't have
@@ -290,20 +315,103 @@ won't fail. Making the driver fault-tolerant is more difficult
 because it keeps persistent state that would have to be recovered in
 order to resume operations after a driver failure. 
 
-Your implementation must pass the one remaining test case in
-`test-failure.sh`. The test case tests handling of many failures of
-workers.  The test case starts new workers that the driver can use to
-make forward progress, but these workers fail after handling a few
-tasks (less than 10 as specified by the last command-line argument
-passed to `go run worker.go`). Run the test as follows. Remember to
-set your `GOPATH` first. 
+Your implementation must pass the next few test cases defined in
+`test-single-failure.sh` and `test-many-failures.sh`. These testing scripts test handling of
+one or multiple
+failures of workers (i.e., multiple goroutines).  The test case
+starts new workers that the driver can use to make forward progress,
+but these workers fail after handling a few tasks (less than 10 as
+specified by the last command-line argument passed to `go run
+worker.go`). For the `test-many-failures.sh`, the new workers fail
+again and another new workers (finally with enough `nRPC`s) are
+started after a 5-second sleep. Run the test as follows. Remember
+again to set your `GOPATH` first. 
 
 ```bash
-$ ./test-failure.sh
+// to test robustness against a single failure
+$ ./test-single-failure.sh
+// to test robustness against two consecutive failures
+$ ./test-many-failures.sh
 ```
 
 Driver crash or hang is treated as **failed to pass the test**. To
 pass the test, the script must print out `Passed test!`. 
+
+
+### Part E: Inverted Index Generation
+
+Word count (we call it `wc` when passing the job name as a command-line
+argument) is a classical example of a MapReduce application, but
+it is not an application that many large consumers of MapReduce use.
+It is simply not very often you need to count the words in a really
+large dataset. For this application exercise, we will instead have
+you build Map and Reduce functions for generating an inverted index.
+We call inverted index `ii` when passing in the job name to run
+the client code.
+
+Inverted indices are widely used in computer science, and are
+particularly useful in document searching. Broadly speaking, an
+inverted index is a map from interesting facts about the underlying
+data, to the original location of that data. For example, in the
+context of search, it might be a map from keywords to documents that
+contain those words. 
+
+We have created a second set of mapper and reducer Go plugin modules
+in `plugins/`: `iim_service.go` and `iir_service.go`, which are very
+similar to the Word Count modules you built earlier. You should
+modify `mapF()` and `reduceF()` in these two files so that they
+together produce an inverted index.  You can pretty much reuse your
+implementation of the `doMap()` function as it is mainly responsible
+for handling MapReduce's I/Os (input and output), and should be
+generic across these two representative applications.
+
+```bash
+$ ./test-ii.sh
+// ... all outputs omitted here ...
+$ head -n5 mr-final.ii.out
+A: 16 pg-being_ernest.txt,pg-dorian_gray.txt,pg-dracula.txt,pg-emma.txt,pg-frankenstein.txt,pg-great_expectations.txt,pg-grimm.txt,pg-huckleberry_finn.txt,pg-les_miserables.txt,pg-metamorphosis.txt,pg-moby_dick.txt,pg-sherlock_holmes.txt,pg-tale_of_two_cities.txt,pg-tom_sawyer.txt,pg-ulysses.txt,pg-war_and_peace.txt
+ABC: 2 pg-les_miserables.txt,pg-war_and_peace.txt
+ABOUT: 2 pg-moby_dick.txt,pg-tom_sawyer.txt
+ABRAHAM: 1 pg-dracula.txt
+ABSOLUTE: 1 pg-les_miserables.txt
+```
+
+
+If it is not clear from the listing above, the format is:
+
+```
+word: #documents documents,sorted,and,separated,by,commas
+```
+
+I will test your implementation's correctness with the following
+command, which should produce these resulting last 10 items in the
+index: 
+
+```bash
+$ sort -k1,1 mr-final.ii.out | sort -snk2,2 | grep -v '16' | tail -10 
+women: 15 pg-being_ernest.txt,pg-dorian_gray.txt,pg-dracula.txt,pg-emma.txt,pg-frankenstein.txt,pg-great_expectations.txt,pg-huckleberry_finn.txt,pg-les_miserables.txt,pg-metamorphosis.txt,pg-moby_dick.txt,pg-sherlock_holmes.txt,pg-tale_of_two_cities.txt,pg-tom_sawyer.txt,pg-ulysses.txt,pg-war_and_peace.txt
+won: 15 pg-being_ernest.txt,pg-dorian_gray.txt,pg-dracula.txt,pg-frankenstein.txt,pg-great_expectations.txt,pg-grimm.txt,pg-huckleberry_finn.txt,pg-les_miserables.txt,pg-metamorphosis.txt,pg-moby_dick.txt,pg-sherlock_holmes.txt,pg-tale_of_two_cities.txt,pg-tom_sawyer.txt,pg-ulysses.txt,pg-war_and_peace.txt
+wonderful: 15 pg-being_ernest.txt,pg-dorian_gray.txt,pg-dracula.txt,pg-emma.txt,pg-frankenstein.txt,pg-great_expectations.txt,pg-grimm.txt,pg-huckleberry_finn.txt,pg-les_miserables.txt,pg-moby_dick.txt,pg-sherlock_holmes.txt,pg-tale_of_two_cities.txt,pg-tom_sawyer.txt,pg-ulysses.txt,pg-war_and_peace.txt
+words: 15 pg-dorian_gray.txt,pg-dracula.txt,pg-emma.txt,pg-frankenstein.txt,pg-great_expectations.txt,pg-grimm.txt,pg-huckleberry_finn.txt,pg-les_miserables.txt,pg-metamorphosis.txt,pg-moby_dick.txt,pg-sherlock_holmes.txt,pg-tale_of_two_cities.txt,pg-tom_sawyer.txt,pg-ulysses.txt,pg-war_and_peace.txt
+worked: 15 pg-dorian_gray.txt,pg-dracula.txt,pg-emma.txt,pg-frankenstein.txt,pg-great_expectations.txt,pg-grimm.txt,pg-huckleberry_finn.txt,pg-les_miserables.txt,pg-metamorphosis.txt,pg-moby_dick.txt,pg-sherlock_holmes.txt,pg-tale_of_two_cities.txt,pg-tom_sawyer.txt,pg-ulysses.txt,pg-war_and_peace.txt
+worse: 15 pg-being_ernest.txt,pg-dorian_gray.txt,pg-dracula.txt,pg-emma.txt,pg-frankenstein.txt,pg-great_expectations.txt,pg-grimm.txt,pg-huckleberry_finn.txt,pg-les_miserables.txt,pg-moby_dick.txt,pg-sherlock_holmes.txt,pg-tale_of_two_cities.txt,pg-tom_sawyer.txt,pg-ulysses.txt,pg-war_and_peace.txt
+wounded: 15 pg-being_ernest.txt,pg-dorian_gray.txt,pg-dracula.txt,pg-emma.txt,pg-frankenstein.txt,pg-great_expectations.txt,pg-grimm.txt,pg-huckleberry_finn.txt,pg-les_miserables.txt,pg-moby_dick.txt,pg-sherlock_holmes.txt,pg-tale_of_two_cities.txt,pg-tom_sawyer.txt,pg-ulysses.txt,pg-war_and_peace.txt
+yes: 15 pg-being_ernest.txt,pg-dorian_gray.txt,pg-dracula.txt,pg-emma.txt,pg-great_expectations.txt,pg-grimm.txt,pg-huckleberry_finn.txt,pg-les_miserables.txt,pg-metamorphosis.txt,pg-moby_dick.txt,pg-sherlock_holmes.txt,pg-tale_of_two_cities.txt,pg-tom_sawyer.txt,pg-ulysses.txt,pg-war_and_peace.txt
+younger: 15 pg-being_ernest.txt,pg-dorian_gray.txt,pg-dracula.txt,pg-emma.txt,pg-frankenstein.txt,pg-great_expectations.txt,pg-grimm.txt,pg-huckleberry_finn.txt,pg-les_miserables.txt,pg-moby_dick.txt,pg-sherlock_holmes.txt,pg-tale_of_two_cities.txt,pg-tom_sawyer.txt,pg-ulysses.txt,pg-war_and_peace.txt
+yours: 15 pg-being_ernest.txt,pg-dorian_gray.txt,pg-dracula.txt,pg-emma.txt,pg-frankenstein.txt,pg-great_expectations.txt,pg-grimm.txt,pg-huckleberry_finn.txt,pg-les_miserables.txt,pg-moby_dick.txt,pg-sherlock_holmes.txt,pg-tale_of_two_cities.txt,pg-tom_sawyer.txt,pg-ulysses.txt,pg-war_and_peace.txt
+```
+
+(this sample result is also found in `main/mr-challenge.txt`) 
+
+Once again, to make testing easy for you, from `main/` directory, run:
+
+```bash
+$ ./test-ii.sh
+```
+
+and it will report if your solution is correct or not.
+
+
 
 ## Resources and Advice
 
@@ -326,7 +434,7 @@ share storage through some kind of network file system (e.g., [Linux
 NFS](http://nfs.sourceforge.net/)).
 
 * The easiest way to track down bugs is to insert `Debug()` (or `serverless.Debug()`) statements,
- set debugEngabled = true in `serverless/common.go`, collect the output
+ set `debugEngabled = true` in `serverless/common.go`, collect the output
 in a file with, e.g., 
 
 	```bash
@@ -337,9 +445,12 @@ in a file with, e.g.,
 	how your code should behave. The last step (thinking) is the most
 	important.  
 
-* When you run your code, you may receive many errors like method has
-wrong number of ins. You can ignore all of these as long as your
-tests pass. 
+* When your code finishes, you may receive errors like ``accept
+error: accept tcp 127.0.0.1:1234: use of closed network
+connection``. You can ignore these as the framework intentionally closes
+the connection to shut down the RPC when everything is finished.
+ 
+
 
 
 ## Point Distribution
@@ -347,9 +458,12 @@ tests pass.
 <table>
 <tr><th>Component</th><th>Points</th></tr>
 <tr><td>Scheduler</td><td>15</td></tr>
-<tr><td>Word Count Plugins</td><td>20</td></tr>
+<tr><td>Word Count Plugins</td><td>15</td></tr>
+<tr><td>Inverted Index Plugins</td><td>10</td></tr>
 <tr><td>test-wc.sh</td><td>15</td></tr>
-<tr><td>test-failure.sh</td><td>15</td></tr>
+<tr><td>test-ii.sh</td><td>15</td></tr>
+<tr><td>test-single-failure.sh</td><td>10</td></tr>
+<tr><td>test-many-failures.sh</td><td>10</td></tr>
 </table>
 
 
@@ -357,7 +471,7 @@ tests pass.
 
 1. **Submit the electronic version**
 
-You hand in your lab assignment exactly as you've been letting us know your progress:
+You hand in your lab assignment exactly as you've been letting me know your progress:
 
 ```bash
 $ git commit -am "[you fill me in]"
@@ -373,7 +487,10 @@ purpose of calculating late days, and we will only grade that version of the
 code. (We'll also know if you backdate the tag, don't do that.)
 
 You will need to share your private repository with me (the instructor)
-(my GitLab ID is the same as my mason email ID: `yuecheng`).
+(my GitLab ID is the same as my mason email ID: `yuecheng`). 
+
+> **NOTE:** Granting me a **Maintainer** access role would be helpful so that I can check in my
+comments if needed.
 
 2. **Schedule a meeting and discuss**
 

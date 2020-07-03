@@ -17,7 +17,7 @@ func main() {
 	jobName := os.Args[2]                   // the 2nd cmd-line argument: MapReduce job name
 	inFiles := os.Args[3:]                  // the rest of cmd-line argument: the input file names of the job
 
-	go drv.Run(serviceName)
+	go drv.Run(jobName, inFiles, 3) // the 3rd parameter is the number of reduce (nReduce) tasks
 
 	drv.Wait()
 }
